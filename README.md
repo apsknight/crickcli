@@ -29,6 +29,8 @@ A command-line interface application to get live cricket scores.
 
 ## Usage
 
+### Live Matches
+
 To get live cricket scores, run:
 
 ```bash
@@ -39,6 +41,34 @@ To see only IPL matches:
 
 ```bash
 crickcli live ipl
+```
+
+### Recent Matches
+
+To get recent match results, run:
+
+```bash
+crickcli recent
+```
+
+To see only IPL recent matches:
+
+```bash
+crickcli recent ipl
+```
+
+### Upcoming Matches
+
+To get upcoming match schedules, run:
+
+```bash
+crickcli upcoming
+```
+
+To see only IPL upcoming matches:
+
+```bash
+crickcli upcoming ipl
 ```
 
 ## Configuration
@@ -52,13 +82,16 @@ Before using the application, you need to:
 ## Features
 
 - Get live cricket scores
+- Get recent match results
+- Get upcoming match schedules
 - Filter matches by type (e.g., IPL)
 - Display match details including:
   - Teams playing
   - Venue
   - Match status
-  - Current scores
-  - Wickets and overs
+  - Current scores (for live and recent matches)
+  - Match status (for upcoming matches)
+  - Wickets and overs (for live and recent matches)
 
 ## License
 

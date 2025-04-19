@@ -36,7 +36,7 @@ pub struct Match {
     #[serde(rename = "matchInfo")]
     pub match_info: MatchInfo,
     #[serde(rename = "matchScore")]
-    pub match_score: MatchScore,
+    pub match_score: Option<MatchScore>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,7 +56,7 @@ pub struct MatchInfo {
     #[serde(rename = "endDate")]
     pub end_date: String,
     pub state: String,
-    pub status: String,
+    pub status: Option<String>,
     pub team1: Team,
     pub team2: Team,
     #[serde(rename = "venueInfo")]
@@ -118,13 +118,13 @@ struct MatchRow {
     score: String,
 }
 
-pub async fn get_live_matches() -> Result<Vec<Match>, Box<dyn Error>> {
+async fn fetch_matches(endpoint: &str) -> Result<Vec<Match>, Box<dyn Error>> {
     let api_key = std::env::var("CRICKET_API_KEY")
         .expect("CRICKET_API_KEY environment variable not set");
     
     let client = reqwest::Client::new();
     let response = client
-        .get("https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live")
+        .get(format!("https://cricbuzz-cricket.p.rapidapi.com/matches/v1/{}", endpoint))
         .header("X-RapidAPI-Key", api_key)
         .header("X-RapidAPI-Host", "cricbuzz-cricket.p.rapidapi.com")
         .send()
@@ -144,36 +144,53 @@ pub async fn get_live_matches() -> Result<Vec<Match>, Box<dyn Error>> {
     Ok(all_matches)
 }
 
+pub async fn get_live_matches() -> Result<Vec<Match>, Box<dyn Error>> {
+    fetch_matches("live").await
+}
+
+pub async fn get_recent_matches() -> Result<Vec<Match>, Box<dyn Error>> {
+    fetch_matches("recent").await
+}
+
+pub async fn get_upcoming_matches() -> Result<Vec<Match>, Box<dyn Error>> {
+    fetch_matches("upcoming").await
+}
+
 pub fn format_matches(matches: &[Match]) -> String {
     let mut rows = Vec::new();
     
     for match_data in matches {
-        let team1_score = match_data.match_score.team1_score.as_ref()
-            .and_then(|s| s.innings1.as_ref())
-            .map(|i| format!("{}: {}/{} ({})", 
-                match_data.match_info.team1.team_s_name,
-                i.runs,
-                i.wickets,
-                i.overs))
-            .unwrap_or_default();
-        
-        let team2_score = match_data.match_score.team2_score.as_ref()
-            .and_then(|s| s.innings1.as_ref())
-            .map(|i| format!("{}: {}/{} ({})", 
-                match_data.match_info.team2.team_s_name,
-                i.runs,
-                i.wickets,
-                i.overs))
-            .unwrap_or_default();
-        
-        let score = if !team1_score.is_empty() && !team2_score.is_empty() {
-            format!("{}\n{}", team1_score, team2_score)
-        } else if !team1_score.is_empty() {
-            team1_score
-        } else if !team2_score.is_empty() {
-            team2_score
-        } else {
-            String::from("No score available")
+        let score = match &match_data.match_score {
+            Some(match_score) => {
+                let team1_score = match_score.team1_score.as_ref()
+                    .and_then(|s| s.innings1.as_ref())
+                    .map(|i| format!("{}: {}/{} ({})", 
+                        match_data.match_info.team1.team_s_name,
+                        i.runs,
+                        i.wickets,
+                        i.overs))
+                    .unwrap_or_default();
+                
+                let team2_score = match_score.team2_score.as_ref()
+                    .and_then(|s| s.innings1.as_ref())
+                    .map(|i| format!("{}: {}/{} ({})", 
+                        match_data.match_info.team2.team_s_name,
+                        i.runs,
+                        i.wickets,
+                        i.overs))
+                    .unwrap_or_default();
+                
+                if !team1_score.is_empty() && !team2_score.is_empty() {
+                    format!("{}\n{}", team1_score, team2_score)
+                } else if !team1_score.is_empty() {
+                    team1_score
+                } else if !team2_score.is_empty() {
+                    team2_score
+                } else {
+                    String::from("No score available")
+                }
+            },
+            None => String::from("Match not started"),
         };
         
         let row = MatchRow {
@@ -183,7 +200,7 @@ pub fn format_matches(matches: &[Match]) -> String {
             venue: format!("{}, {}", 
                 match_data.match_info.venue_info.ground,
                 match_data.match_info.venue_info.city),
-            status: match_data.match_info.status.clone(),
+            status: match_data.match_info.status.clone().unwrap_or_else(|| String::from("Upcoming")),
             score,
         };
         
