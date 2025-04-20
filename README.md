@@ -1,5 +1,7 @@
 # CrickCLI
 
+[![Rust](https://github.com/apsknight/crickcli/actions/workflows/rust.yml/badge.svg)](https://github.com/apsknight/crickcli/actions/workflows/rust.yml)
+
 A command-line interface application to get live cricket scores.
 
 ## Prerequisites
