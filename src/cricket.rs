@@ -255,8 +255,8 @@ pub fn format_matches(matches: &[Match]) -> String {
         
         let row = MatchRow {
             teams: format!("{} vs {}", 
-                match_data.match_info.team1.team_name,
-                match_data.match_info.team2.team_name),
+                match_data.match_info.team1.team_s_name,
+                match_data.match_info.team2.team_s_name),
             venue: match_data.match_info.venue_info.city.clone(),
             status: match_data.match_info.status.clone().unwrap_or_else(|| String::from("Upcoming")),
             score,
@@ -295,12 +295,12 @@ pub fn format_schedule(matches: &[(ScheduleMatchInfo, String)]) -> String {
         let datetime = chrono::DateTime::from_timestamp(timestamp / 1000, 0)
             .map(|dt| dt.with_timezone(&chrono::Local))
             .unwrap_or_default();
-        let formatted_date = datetime.format("%Y-%m-%d %H:%M %Z").to_string();
+        let formatted_date = datetime.format("%Y-%m-%d %I:%M %p").to_string();
         
         let row = ScheduleRow {
             teams: format!("{} vs {}", 
-                match_data.team1.team_name,
-                match_data.team2.team_name),
+                match_data.team1.team_s_name,
+                match_data.team2.team_s_name),
             venue: match_data.venue_info.city.clone(),
             schedule: formatted_date,
         };
