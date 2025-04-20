@@ -71,6 +71,20 @@ To see only IPL upcoming matches:
 crickcli upcoming ipl
 ```
 
+### Schedule
+
+To get the complete cricket schedule, run:
+
+```bash
+crickcli schedule
+```
+
+To see only IPL schedule:
+
+```bash
+crickcli schedule ipl
+```
+
 ## Configuration
 
 Before using the application, you need to:
@@ -84,6 +98,7 @@ Before using the application, you need to:
 - Get live cricket scores
 - Get recent match results
 - Get upcoming match schedules
+- Get complete cricket schedule
 - Filter matches by type (e.g., IPL)
 - Display match details including:
   - Teams playing

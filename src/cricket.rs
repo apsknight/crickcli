@@ -77,7 +77,7 @@ pub struct Team {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VenueInfo {
-    pub id: i64,
+    pub id: Option<i64>,
     pub ground: String,
     pub city: String,
     pub timezone: String,
@@ -116,6 +116,66 @@ struct MatchRow {
     status: String,
     #[tabled(rename = "Score")]
     score: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScheduleResponse {
+    #[serde(rename = "matchScheduleMap")]
+    pub match_schedule_map: Vec<ScheduleMap>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScheduleMap {
+    #[serde(rename = "scheduleAdWrapper")]
+    pub schedule_ad_wrapper: Option<ScheduleAdWrapper>,
+    #[serde(rename = "adDetail")]
+    pub ad_detail: Option<AdDetail>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScheduleAdWrapper {
+    pub date: String,
+    #[serde(rename = "matchScheduleList")]
+    pub match_schedule_list: Vec<MatchSchedule>,
+    #[serde(rename = "longDate")]
+    pub long_date: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MatchSchedule {
+    #[serde(rename = "seriesName")]
+    pub series_name: String,
+    #[serde(rename = "matchInfo")]
+    pub match_info: Vec<ScheduleMatchInfo>,
+    #[serde(rename = "seriesId")]
+    pub series_id: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScheduleMatchInfo {
+    #[serde(rename = "matchId")]
+    pub match_id: i64,
+    #[serde(rename = "seriesId")]
+    pub series_id: i64,
+    #[serde(rename = "matchDesc")]
+    pub match_desc: String,
+    #[serde(rename = "matchFormat")]
+    pub match_format: String,
+    #[serde(rename = "startDate")]
+    pub start_date: String,
+    #[serde(rename = "endDate")]
+    pub end_date: String,
+    pub team1: Team,
+    pub team2: Team,
+    #[serde(rename = "venueInfo")]
+    pub venue_info: VenueInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdDetail {
+    pub name: String,
+    pub layout: String,
+    pub position: i64,
 }
 
 async fn fetch_matches(endpoint: &str) -> Result<Vec<Match>, Box<dyn Error>> {
@@ -197,9 +257,7 @@ pub fn format_matches(matches: &[Match]) -> String {
             teams: format!("{} vs {}", 
                 match_data.match_info.team1.team_name,
                 match_data.match_info.team2.team_name),
-            venue: format!("{}, {}", 
-                match_data.match_info.venue_info.ground,
-                match_data.match_info.venue_info.city),
+            venue: match_data.match_info.venue_info.city.clone(),
             status: match_data.match_info.status.clone().unwrap_or_else(|| String::from("Upcoming")),
             score,
         };
@@ -216,4 +274,75 @@ pub fn format_matches(matches: &[Match]) -> String {
         .to_string();
     
     format!("\n{}\n", table)
+}
+
+#[derive(Tabled)]
+struct ScheduleRow {
+    #[tabled(rename = "Teams")]
+    teams: String,
+    #[tabled(rename = "Venue")]
+    venue: String,
+    #[tabled(rename = "Schedule")]
+    schedule: String,
+}
+
+pub fn format_schedule(matches: &[(ScheduleMatchInfo, String)]) -> String {
+    let mut rows = Vec::new();
+    
+    for (match_data, _series_name) in matches {
+        // Convert timestamp to readable date in local timezone
+        let timestamp = match_data.start_date.parse::<i64>().unwrap_or(0);
+        let datetime = chrono::DateTime::from_timestamp(timestamp / 1000, 0)
+            .map(|dt| dt.with_timezone(&chrono::Local))
+            .unwrap_or_default();
+        let formatted_date = datetime.format("%Y-%m-%d %H:%M %Z").to_string();
+        
+        let row = ScheduleRow {
+            teams: format!("{} vs {}", 
+                match_data.team1.team_name,
+                match_data.team2.team_name),
+            venue: match_data.venue_info.city.clone(),
+            schedule: formatted_date,
+        };
+        
+        rows.push(row);
+    }
+    
+    if rows.is_empty() {
+        return String::from("No matches found");
+    }
+    
+    let table = Table::new(rows)
+        .with(Style::modern())
+        .to_string();
+    
+    format!("\n{}\n", table)
+}
+
+pub async fn get_schedule() -> Result<Vec<(ScheduleMatchInfo, String)>, Box<dyn Error>> {
+    let api_key = std::env::var("CRICKET_API_KEY")
+        .expect("CRICKET_API_KEY environment variable not set");
+    
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://cricbuzz-cricket.p.rapidapi.com/schedule/v1/league")
+        .header("X-RapidAPI-Key", api_key)
+        .header("X-RapidAPI-Host", "cricbuzz-cricket.p.rapidapi.com")
+        .send()
+        .await?;
+
+    let schedule_response: ScheduleResponse = response.json().await?;
+    
+    let mut all_matches = Vec::new();
+    for schedule_map in schedule_response.match_schedule_map {
+        if let Some(schedule_ad_wrapper) = schedule_map.schedule_ad_wrapper {
+            for match_schedule in schedule_ad_wrapper.match_schedule_list {
+                for match_info in match_schedule.match_info {
+                    all_matches.push((match_info, match_schedule.series_name.clone()));
+                }
+            }
+        }
+    }
+    
+    Ok(all_matches)
 } 

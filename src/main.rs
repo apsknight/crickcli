@@ -28,6 +28,11 @@ enum Commands {
         #[command(subcommand)]
         filter: Option<LiveFilter>,
     },
+    /// Get cricket schedule
+    Schedule {
+        #[command(subcommand)]
+        filter: Option<LiveFilter>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -56,6 +61,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let matches = cricket::get_upcoming_matches().await?;
             handle_matches(matches, filter);
         }
+        Commands::Schedule { filter } => {
+            println!("{}", "Fetching cricket schedule...".yellow());
+            let matches = cricket::get_schedule().await?;
+            handle_schedule(matches, filter);
+        }
     }
 
     Ok(())
@@ -74,5 +84,21 @@ fn handle_matches(matches: Vec<cricket::Match>, filter: Option<LiveFilter>) {
         };
         
         println!("{}", cricket::format_matches(&filtered_matches));
+    }
+}
+
+fn handle_schedule(matches: Vec<(cricket::ScheduleMatchInfo, String)>, filter: Option<LiveFilter>) {
+    if matches.is_empty() {
+        println!("{}", "No matches found.".red());
+    } else {
+        let filtered_matches: Vec<_> = match filter {
+            Some(LiveFilter::Ipl) => matches
+                .into_iter()
+                .filter(|(_, series_name)| series_name.contains("Indian Premier League"))
+                .collect(),
+            None => matches,
+        };
+        
+        println!("{}", cricket::format_schedule(&filtered_matches));
     }
 }
