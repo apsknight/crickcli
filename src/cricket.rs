@@ -102,6 +102,7 @@ pub struct Innings {
     #[serde(rename = "inningsId")]
     pub innings_id: i64,
     pub runs: i64,
+    #[serde(default)]
     pub wickets: i64,
     pub overs: f64,
 }
